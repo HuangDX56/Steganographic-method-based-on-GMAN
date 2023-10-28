@@ -21,6 +21,7 @@ from pathlib import Path
 
 from ResUNet1NoSkip import UNet
 
+os.environ['CUDA_VISIBLE_DEVICES'] = '0,1'
 
 def myParseArgs():
     parser = argparse.ArgumentParser()
@@ -46,14 +47,6 @@ def myParseArgs():
     parser.add_argument('--beta1', type=float, default=0.5, help='beta1 for adam. default=0.5')
     parser.add_argument('--manualSeed', type=int, help='manual seed')
     
-    parser.add_argument(
-        '-g',
-        '--gpuNum',
-        help='Determine which gpu to use',
-        type=str,
-        choices=['0', '1', '2', '3'],
-        required=True
-    )
 
     args = parser.parse_args()
     return args
@@ -123,14 +116,14 @@ def weights_init_g(net):
             m.bias.data.fill_(0)
 
 
-def adjust_bn_stats(model, device, train_loader):
+def adjust_bn_stats(model, train_loader):
   model.train()
 
   with torch.no_grad():
     for i,sample in enumerate(train_loader,0):
 
         cover, rand_ud, label, index= sample['cover'], sample['rand_ud'], sample['label'], sample['index']
-        cover, n, label = cover.to(device), rand_ud.to(device), label.to(device)
+        cover, n, label = cover.cuda(), rand_ud.cuda(), label.cuda()
 
         # learn the probas
         p = model(cover)
@@ -164,8 +157,9 @@ def main():
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batchSize,
                                             shuffle=True, num_workers=int(args.workers),drop_last = True)
 
-    device = torch.device('cuda:' + args.gpuNum)
-    netG = UNet().to(device)
+    netG = UNet()
+    netG = nn.DataParallel(netG)
+    netG = netG.cuda()
     #netG.apply(weights_init_g)
     
     if args.netG != '':
@@ -173,14 +167,14 @@ def main():
         netG.load_state_dict(torch.load(args.netG))
     
 
-    adjust_bn_stats(netG, device, train_loader)
+    adjust_bn_stats(netG, train_loader)
 
     netG.eval()
     with torch.no_grad():
         for i,sample in enumerate(dataloader,0):
 
             cover, index = sample['cover'], sample['index']
-            cover = cover.to(device)
+            cover = cover.cuda()
 
             # learn the probas
             

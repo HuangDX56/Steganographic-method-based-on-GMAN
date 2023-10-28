@@ -30,7 +30,7 @@ from yednet import YedNet
 TS_PARA = 60
 PAYLOAD = 0.4
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '0,1,2,3'
+os.environ['CUDA_VISIBLE_DEVICES'] = '0,1'
 
 def myParseArgs():
     parser = argparse.ArgumentParser()
